@@ -333,14 +333,13 @@
       <h2>Usuários do Sistema</h2>
       <p style="color:var(--muted);font-size:13px;margin-top:0;">Visível apenas para o usuário master.</p>
       <div id="users-list" style="margin-bottom:18px;"></div>
-      <div class="grid3">
+      <div class="grid2">
         <div><label>Usuário</label><input id="nu-login" placeholder="login"></div>
         <div><label>Senha</label><input id="nu-pass" type="password" placeholder="senha"></div>
-        <div><label>Perfil</label>
-          <select id="nu-role"><option value="user">Usuário comum</option><option value="master">Master</option></select>
-        </div>
       </div>
-      <div class="actions"><button class="btn" id="btn-add-user">+ adicionar usuário</button></div>
+      <div id="user-save-status" style="font-family:var(--mono);font-size:12.5px;margin-top:12px;min-height:16px;"></div>
+      <div class="actions"><button class="btn" id="btn-add-user">💾 Salvar usuário</button>
+        <button class="btn secondary" id="btn-sync-users">Enviar usuários ao Supabase</button></div>
     </div>
 
     <div class="card" id="card-supabase" style="display:none;">
@@ -374,7 +373,25 @@ create policy "allow all for anon"
 on public.romaneios
 for all
 using (true)
-with check (true);</textarea>
+with check (true);
+
+create table if not exists public.usuarios (
+  login      text primary key,
+  senha      text not null,   -- hash SHA-256 com sal (nunca a senha pura)
+  created_at timestamptz not null default now()
+);
+
+alter table public.usuarios enable row level security;
+
+drop policy if exists "allow all for anon" on public.usuarios;
+create policy "allow all for anon"
+on public.usuarios
+for all
+using (true)
+with check (true);
+
+-- se a tabela já existia com a coluna de função, remova-a:
+alter table public.usuarios drop column if exists role;</textarea>
       </details>
     </div>
   </div>
@@ -470,6 +487,7 @@ function syncVeiculosArraySize(qty){
 /* no navegador). Aqui os dados ficam de fato salvos na máquina.      */
 /* ---------------------------------------------------------------- */
 const DB_KEY = 'manifesto_db_v1';
+function normalizeRoles(){ (DB.users||[]).forEach(u=>{ u.role = (u.login==='adm') ? 'master' : 'user'; }); }
 function b64(s){ try{ return btoa(unescape(encodeURIComponent(s))); }catch(e){ return btoa(s); } }
 function defaultDB(){
   return {
@@ -488,6 +506,7 @@ function dbLoad(){
   }catch(e){ DB = defaultDB(); }
   if(!DB.romaneios) DB.romaneios = {};
   if(!DB.users || DB.users.length===0) DB.users = defaultDB().users;
+  normalizeRoles();
   if(!DB.config) DB.config = defaultDB().config;
   if(!DB.config.supabase) DB.config.supabase = {url:'', key:'', enabled:false};
   if(!DB.nextRomaneioSeq) DB.nextRomaneioSeq = 1;
@@ -584,6 +603,7 @@ function importDBFile(file){
       DB = Object.assign(defaultDB(), imported);
       if(!DB.romaneios) DB.romaneios = {};
       if(!DB.users || DB.users.length===0) DB.users = defaultDB().users;
+      normalizeRoles();
       if(!DB.config) DB.config = defaultDB().config;
       dbSave();
       alert('Backup importado com sucesso.');
@@ -607,8 +627,49 @@ let currentUser = null;
 const SESSION_KEY = 'manifesto_session';
 const ACCENT_PALETTE = ['#f2a93b','#4cc38a','#5b9bd5','#e5484d','#b388eb','#64b5f6','#ff8a65','#e8c547'];
 
-function tryLogin(login, pass){
-  return (DB.users||[]).find(u=> u.login===login && u.senha===b64(pass)) || null;
+/* Senhas: guardadas como hash SHA-256 com "sal" (sha256$sal$hash), nunca em texto puro.
+   O formato antigo (base64) ainda é aceito e convertido automaticamente no primeiro login. */
+const HAS_CRYPTO = !!(window.crypto && window.crypto.subtle);
+function toHex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+async function sha256hex(txt){ return toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt))); }
+async function makeHash(pass){
+  if(!HAS_CRYPTO) return b64(pass);
+  const salt = toHex(crypto.getRandomValues(new Uint8Array(8)));
+  return 'sha256$'+salt+'$'+await sha256hex(salt+pass);
+}
+async function checkPass(stored, pass){
+  if(stored && stored.startsWith('sha256$')){
+    if(!HAS_CRYPTO) return false;
+    const parts = stored.split('$');
+    return (await sha256hex(parts[1]+pass)) === parts[2];
+  }
+  return stored === b64(pass); // formato antigo
+}
+async function findUser(login, pass){
+  const u = (DB.users||[]).find(x=> x.login===login);
+  if(!u || !(await checkPass(u.senha, pass))) return null;
+  if(!String(u.senha).startsWith('sha256$') && HAS_CRYPTO){ // migra senha antiga para hash
+    u.senha = await makeHash(pass); dbSave();
+    if(sb) pushUsersRemote().catch(()=>{});
+  }
+  return u;
+}
+
+/* Usuários no Supabase (tabela "usuarios"). Se a nuvem estiver ativa, ela é a fonte dos usuários. */
+async function pushUsersRemote(){
+  if(!sb) return {ok:false, error:{message:'Supabase não está ativo'}};
+  const {error} = await sb.from('usuarios').upsert((DB.users||[]).map(u=>({login:u.login, senha:u.senha})));
+  return {ok:!error, error};
+}
+async function pullUsersRemote(){
+  if(!sb) return false;
+  try{
+    const {data, error} = await sb.from('usuarios').select('login,senha');
+    if(error) throw error;
+    if(data && data.length){ DB.users = data.map(r=>({login:r.login, senha:r.senha})); normalizeRoles(); dbSave(); return true; }
+    await pushUsersRemote(); // tabela vazia: envia os usuários locais (inclui o master)
+  }catch(e){ console.warn('Usuários: usando apenas o banco local ('+(e.message||e)+')'); }
+  return false;
 }
 function shadeColor(hex, percent){
   const num = parseInt(hex.replace('#',''),16);
@@ -650,12 +711,12 @@ function renderUsersList(){
     row.innerHTML = `
       <div class="info"><b>${escapeHtml(u.login)}</b><div>${u.role==='master'?'Master':'Usuário comum'}</div></div>
       <div class="btns"><button class="btn secondary" type="button">Excluir</button></div>`;
-    row.querySelector('button').addEventListener('click', ()=>{
-      const masters = DB.users.filter(x=>x.role==='master');
-      if(u.role==='master' && masters.length<=1){ alert('Não é possível remover o único usuário master do sistema.'); return; }
+    row.querySelector('button').addEventListener('click', async ()=>{
+      if(u.login==='adm'){ alert('O usuário master (adm) não pode ser removido.'); return; }
       if(!confirm('Remover o usuário "'+u.login+'"?')) return;
       DB.users = DB.users.filter(x=>x.login!==u.login);
       dbSave(); renderUsersList();
+      if(sb){ try{ await sb.from('usuarios').delete().eq('login', u.login); }catch(e){ console.warn(e); } }
     });
     el.appendChild(row);
   });
@@ -667,11 +728,13 @@ function showApp(){
   document.getElementById('card-users').style.display = currentUser.role==='master' ? '' : 'none';
   document.getElementById('card-supabase').style.display = currentUser.role==='master' ? '' : 'none';
 }
-function doLogin(){
+async function doLogin(){
   const login = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value;
-  const u = tryLogin(login, pass);
   const err = document.getElementById('login-error');
+  err.textContent = '';
+  if(sb) await pullUsersRemote(); // traz usuários atualizados da nuvem antes de validar
+  const u = await findUser(login, pass);
   if(u){
     currentUser = {login:u.login, role:u.role};
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
@@ -700,16 +763,33 @@ document.getElementById('file-import-db').addEventListener('change', e=>{
   if(file) importDBFile(file);
   e.target.value = '';
 });
-document.getElementById('btn-add-user').addEventListener('click', ()=>{
+document.getElementById('btn-add-user').addEventListener('click', async ()=>{
   const login = document.getElementById('nu-login').value.trim();
   const pass = document.getElementById('nu-pass').value;
-  const role = document.getElementById('nu-role').value;
-  if(!login || !pass){ alert('Informe usuário e senha.'); return; }
-  if(DB.users.some(u=>u.login===login)){ alert('Já existe um usuário com esse login.'); return; }
-  DB.users.push({login, senha:b64(pass), role});
+  const st = document.getElementById('user-save-status');
+  const say = (txt, color)=>{ st.textContent = txt; st.style.color = color; };
+  if(!login || !pass){ say('Informe usuário e senha.', 'var(--danger)'); return; }
+  const existing = DB.users.find(u=>u.login===login);
+  if(existing && !confirm('O usuário "'+login+'" já existe. Atualizar a senha dele?')) return;
+  const senha = await makeHash(pass);
+  if(existing) existing.senha = senha; else DB.users.push({login, senha});
+  normalizeRoles();
   dbSave();
   document.getElementById('nu-login').value=''; document.getElementById('nu-pass').value='';
   renderUsersList();
+  if(!sb){
+    say('Salvo apenas neste navegador. O Supabase não está ativo — em "Integração com Supabase", marque "Usar Supabase" e clique em Salvar configuração.', 'var(--accent)');
+    return;
+  }
+  say('Enviando ao Supabase…', 'var(--muted)');
+  const r = await pushUsersRemote();
+  if(r.ok) say('✅ Usuário "'+login+'" salvo no Supabase.', 'var(--ok)');
+  else say('🔴 Salvo localmente, mas o Supabase recusou: '+(r.error&&r.error.message||'erro desconhecido')+' — confira se a tabela "usuarios" existe (rode o SQL de Configurações).', 'var(--danger)');
+});
+document.getElementById('btn-sync-users').addEventListener('click', async ()=>{
+  if(!sb){ alert('Ative a integração com o Supabase primeiro (card abaixo).'); return; }
+  const r = await pushUsersRemote();
+  alert(r.ok ? 'Usuários enviados ao Supabase com sucesso.' : 'Falha ao enviar: '+(r.error&&r.error.message)+'\nExecute o SQL atualizado (tabela "usuarios") no Supabase.');
 });
 
 

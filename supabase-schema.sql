@@ -46,3 +46,35 @@ create policy "allow all for anon"
   for all
   using (true)
   with check (true);
+
+
+-- ============================================================
+-- USUÁRIOS DO SISTEMA (login)
+-- A coluna "senha" guarda um hash SHA-256 com sal, gerado pelo
+-- próprio sistema — nunca a senha em texto puro. O usuário
+-- master padrão (adm) é enviado automaticamente no primeiro
+-- login com o Supabase ativo, ou pelo botão
+-- "Enviar usuários ao Supabase" em Configurações.
+--
+-- ATENÇÃO: com a política permissiva abaixo, quem tiver a chave
+-- anon consegue LER os hashes e alterar usuários. Use só em
+-- ambiente interno/confiável e troque a senha padrão (1234).
+-- ============================================================
+create table if not exists public.usuarios (
+  login      text primary key,
+  senha      text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.usuarios enable row level security;
+
+drop policy if exists "allow all for anon" on public.usuarios;
+create policy "allow all for anon"
+  on public.usuarios
+  for all
+  using (true)
+  with check (true);
+
+-- Se a tabela "usuarios" já existia com a coluna de função (role), remova-a.
+-- O sistema não usa mais essa coluna: o master é sempre o login "adm".
+alter table public.usuarios drop column if exists role;

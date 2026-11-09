@@ -9,7 +9,7 @@ Site estático (sem build, sem Node). Arquivos:
 | `vercel.json` | Ajustes para a Vercel |
 | `supabase-schema.sql` | Cria as tabelas no Supabase (romaneios e usuários) |
 
-Login inicial: **adm / 1234** (troque criando outro usuário master em Configurações e removendo o padrão).
+Login inicial (master): **adm / 1234** (troque criando outro usuário master em Configurações e removendo o padrão).
 
 ## 1) Supabase (banco de dados)
 1. Crie um projeto em supabase.com.
@@ -35,7 +35,7 @@ Basta enviar o conteúdo desta pasta (com `index.html` na **raiz**) como site es
 Não há build nem servidor. Se a plataforma pedir comando de build, deixe em branco.
 
 ## Observações
-- Usuários e senhas ficam na tabela `usuarios` (somente login e senha em hash SHA-256 com sal; o master é sempre o login `adm`). Com o Supabase ativo, o login consulta a nuvem; o usuário master `adm` é enviado automaticamente no primeiro login.
+- Usuários ficam na tabela `usuarios` (login, senha em hash SHA-256 com sal e perfil `master` ou `user`). O `supabase-schema.sql` já cria o master **adm / 1234**. Só o master acessa Configurações (usuários e Supabase).
 - Os dados ficam no navegador (localStorage) e, com o Supabase ativo, também na nuvem.
 - A política do `supabase-schema.sql` é permissiva: quem tiver a chave anon lê e altera os romaneios.
   Use apenas internamente. Login e senhas do sistema são uma trava básica (não substituem autenticação real).

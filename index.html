@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manifesto — Sistema de Romaneio &amp; Alocação de Frota</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js" onerror="void 0"></script>
+<style>
+  :root{
+    --bg:#12161a; --panel:#1b2126; --panel-alt:#212a30; --border:#313b42;
+    --text:#e7ecef; --muted:#8fa0ac; --accent:#f2a93b; --accent-dim:#7a5a24;
+    --danger:#e5484d; --ok:#4cc38a; --mono:'IBM Plex Mono',monospace;
+    --disp:'Oswald',sans-serif; --body:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;}
+
+  header.topbar{
+    display:flex;align-items:center;gap:24px;padding:14px 28px;
+    background:linear-gradient(180deg,#1a2024,#141a1e);border-bottom:2px solid var(--accent);
+  }
+  header.topbar .brand{font-family:var(--disp);font-weight:700;font-size:22px;letter-spacing:0.5px;}
+  header.topbar .brand span{color:var(--accent);}
+  nav.tabs{display:flex;gap:4px;margin-left:auto;}
+  nav.tabs button{
+    background:none;border:1px solid var(--border);color:var(--muted);padding:9px 18px;
+    font-family:var(--disp);font-size:13px;letter-spacing:1px;text-transform:uppercase;
+    cursor:pointer;border-radius:4px 4px 0 0;transition:all .15s;
+  }
+  nav.tabs button:hover{color:var(--text);border-color:#4a5860;}
+  nav.tabs button.active{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:600;}
+  nav.tabs button:disabled{opacity:.35;cursor:not-allowed;}
+  .userbox{display:flex;align-items:center;gap:12px;margin-left:18px;}
+  .userbox #user-badge{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .userbox button{padding:7px 14px;font-size:11px;}
+
+  #login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;}
+  .login-card{width:320px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:32px 28px;border-top:3px solid var(--accent);}
+  .login-brand{font-family:var(--disp);font-weight:700;font-size:26px;text-align:center;}
+  .login-brand span{color:var(--accent);}
+  .login-sub{text-align:center;color:var(--muted);font-size:12.5px;margin:4px 0 22px;}
+  .login-error{color:var(--danger);font-size:12.5px;margin-top:10px;min-height:16px;}
+
+  main{padding:26px 28px 60px;max-width:1180px;margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px 22px;margin-bottom:18px;}
+  .card h2{font-family:var(--disp);font-size:15px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:0 0 16px;border-bottom:1px solid var(--border);padding-bottom:10px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .grid3{display:grid;grid-template-columns:1.4fr 0.8fr 0.8fr;gap:14px;}
+  @media (max-width:820px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+  label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;margin-top:12px;}
+  label:first-child{margin-top:0;}
+  select{
+    width:100%;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);
+    padding:9px 10px;border-radius:5px;font-family:var(--body);font-size:14px;
+  }
+  select:focus{outline:none;border-color:var(--accent);}
+  table.items select{padding:7px 8px;font-size:13px;}
+  input,textarea{
+    width:100%;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);
+    padding:9px 10px;border-radius:5px;font-family:var(--body);font-size:14px;
+  }
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  input[type=number]{font-family:var(--mono);}
+
+  table.items{width:100%;border-collapse:collapse;margin-top:6px;}
+  table.items th{text-align:left;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:6px 8px;border-bottom:1px solid var(--border);}
+  table.items td{padding:5px 8px;border-bottom:1px solid #262e34;}
+  table.items input{padding:7px 8px;font-size:13px;}
+  table.items td.rm{width:34px;text-align:center;}
+  .rm-btn{background:none;border:1px solid var(--border);color:var(--danger);width:28px;height:28px;border-radius:5px;cursor:pointer;font-size:15px;line-height:1;}
+  .rm-btn:hover{background:rgba(229,72,77,.15);}
+  .add-row{margin-top:10px;background:none;border:1px dashed var(--border);color:var(--muted);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:13px;}
+  .add-row:hover{color:var(--accent);border-color:var(--accent-dim);}
+
+  .totals{display:flex;gap:28px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);}
+  .totals .t{font-family:var(--mono);}
+  .totals .t b{display:block;font-size:19px;color:var(--accent);}
+  .totals .t span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
+
+  .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  button.btn{
+    font-family:var(--disp);font-size:13px;letter-spacing:1px;text-transform:uppercase;
+    padding:11px 20px;border-radius:5px;border:1px solid var(--accent);background:var(--accent);
+    color:#1a1300;cursor:pointer;font-weight:600;
+  }
+  button.btn.secondary{background:none;color:var(--text);border-color:var(--border);}
+  button.btn.secondary:hover{border-color:var(--accent);color:var(--accent);}
+  button.btn:hover{filter:brightness(1.08);}
+  button.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .fleet-result{display:none;margin-top:6px;}
+  .fleet-result.show{display:block;}
+  .fleet-card{display:flex;align-items:center;gap:18px;background:var(--panel-alt);border:1px solid var(--accent-dim);border-radius:8px;padding:16px 18px;}
+  .fleet-card .emoji{font-size:38px;}
+  .fleet-card h3{margin:0 0 4px;font-family:var(--disp);font-size:19px;color:var(--accent);}
+  .fleet-card .specs{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .warning{margin-top:12px;background:rgba(229,72,77,.12);border:1px solid var(--danger);color:#ffb3b5;padding:10px 14px;border-radius:6px;font-size:13px;}
+
+  /* Saved list */
+  .saved-card{display:flex;justify-content:space-between;align-items:center;background:var(--panel-alt);border:1px solid var(--border);border-radius:7px;padding:14px 16px;margin-bottom:10px;}
+  .saved-card .info b{font-family:var(--disp);color:var(--accent);font-size:15px;}
+  .saved-card .info div{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .saved-card .btns{display:flex;gap:8px;}
+  .saved-card .btns button{font-size:11.5px;padding:7px 12px;}
+  .empty{color:var(--muted);font-size:13.5px;padding:20px 0;text-align:center;}
+
+  /* 3D view */
+  #view3d-wrap{position:relative;height:72vh;min-height:480px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#0b0d0f;}
+  #canvas3d{width:100%;height:100%;display:block;cursor:grab;}
+  .legend3d{position:absolute;top:12px;left:12px;background:rgba(18,22,26,.88);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-family:var(--mono);font-size:12px;line-height:1.7;max-width:230px;}
+  .legend3d b{color:var(--accent);}
+  .panel3d{position:absolute;top:12px;right:12px;background:rgba(18,22,26,.94);border:1px solid var(--accent-dim);border-radius:7px;padding:14px 16px;width:230px;display:none;}
+  .panel3d.show{display:block;}
+  .panel3d h4{margin:0 0 10px;font-family:var(--disp);font-size:14px;color:var(--accent);}
+  .panel3d label{font-size:10px;margin-top:8px;}
+  .panel3d input[type=range]{padding:0;height:5px;}
+  .panel3d .val{font-family:var(--mono);font-size:11px;color:var(--muted);float:right;}
+  .panel3d .rowbtn{display:flex;gap:8px;margin-top:12px;}
+  .panel3d .rowbtn button{flex:1;font-size:11px;padding:8px;}
+  .panel3d #p3-vmode.active{background:var(--accent);color:#1a1300;border-color:var(--accent);}
+  .overflow-box{position:absolute;bottom:12px;left:12px;right:12px;background:rgba(229,72,77,.14);border:1px solid var(--danger);border-radius:7px;padding:10px 14px;font-size:12.5px;color:#ffc7c8;display:none;}
+  .overflow-box.show{display:block;}
+  #vehicle-tabs{display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  #vehicle-tabs.show{display:flex;}
+  #vehicle-tabs button{background:var(--panel-alt);border:1px solid var(--border);color:var(--muted);padding:9px 16px;border-radius:6px;cursor:pointer;font-family:var(--disp);font-size:12px;letter-spacing:.5px;}
+  #vehicle-tabs button.active{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:600;}
+  .hint3d{position:absolute;bottom:12px;right:12px;background:rgba(18,22,26,.85);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:8px 12px;border-radius:6px;max-width:210px;}
+
+  /* Print area */
+  #print-area{display:none;}
+  @media print{
+    body > *:not(#print-area){ display:none !important; }
+    #print-area{display:block !important;position:static;width:100%;padding:24px;color:#000;}
+    #print-area h1{font-family:Georgia,serif;border-bottom:3px solid #000;padding-bottom:10px;}
+    #print-area h2{font-family:Georgia,serif;margin-top:22px;font-size:16px;}
+    #print-area table{width:100%;border-collapse:collapse;margin-top:14px;}
+    #print-area thead{display:table-header-group;}
+    #print-area tr{page-break-inside:avoid;break-inside:avoid;}
+    #print-area th,#print-area td{border:1px solid #000;padding:6px 8px;font-size:12px;text-align:left;}
+    #print-area th:first-child,#print-area td:first-child{width:32px;text-align:center;}
+    #print-area .pmeta{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;gap:24px;}
+    #print-area .pcol{width:48%;}
+    #print-area img{max-width:100%;page-break-inside:avoid;border:1px solid #000;margin-top:8px;}
+    #print-area .sig{margin-top:30px;}
+    #print-area .page-break{page-break-after:always;break-after:page;}
+    @page{ margin:14mm; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">MANIFEST<span>O</span></div>
+    <p class="login-sub">Sistema de Romaneio &amp; Alocação de Frota</p>
+    <label>Usuário</label>
+    <input id="login-user" autocomplete="username" placeholder="usuário">
+    <label>Senha</label>
+    <input id="login-pass" type="password" autocomplete="current-password" placeholder="senha">
+    <div class="login-error" id="login-error"></div>
+    <button class="btn" id="btn-login" style="width:100%;margin-top:16px;">Entrar</button>
+  </div>
+</div>
+
+<div id="app-shell" style="display:none;">
+<header class="topbar">
+  <div class="brand">MANIFEST<span>O</span> — Romaneio &amp; Frota</div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="form">Novo Romaneio</button>
+    <button class="tab-btn" data-tab="saved">Romaneios Salvos</button>
+    <button class="tab-btn" data-tab="view3d" id="tab-3d-btn" disabled>Carga 3D</button>
+    <button class="tab-btn" data-tab="config">Configurações</button>
+  </nav>
+  <div class="userbox">
+    <span id="user-badge"></span>
+    <button class="btn secondary" id="btn-logout">Sair</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===================== TAB: FORM ===================== -->
+  <div class="view active" id="view-form">
+
+    <div class="card">
+      <h2>Dados Gerais</h2>
+      <div class="grid3">
+        <div><label>Projeto</label><input id="f-projeto" placeholder="Nome do projeto / obra"></div>
+        <div><label>Data</label><input id="f-data" type="date"></div>
+        <div><label>ID do Romaneio</label><input id="f-romid" readonly style="opacity:.75;cursor:not-allowed;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Veículo(s) e Nota(s) Fiscal(is)</h2>
+      <p style="color:var(--muted);font-size:12.5px;margin-top:0;">Os campos abaixo se ajustam automaticamente à quantidade de veículos calculada em "Calcular frota necessária".</p>
+      <div id="veiculos-fields"></div>
+    </div>
+
+    <div class="card">
+      <div class="grid2">
+        <div>
+          <h2>Origem</h2>
+          <label>Nome / Empresa</label><input id="o-nome" placeholder="Ex: Depósito Central">
+          <label>Endereço</label><input id="o-endereco" placeholder="Rua, número, cidade - UF">
+          <label>Telefone para contato</label><input id="o-telefone" placeholder="(00) 00000-0000">
+        </div>
+        <div>
+          <h2>Destino</h2>
+          <label>Nome / Empresa</label><input id="d-nome" placeholder="Ex: Obra Jardins">
+          <label>Endereço</label><input id="d-endereco" placeholder="Rua, número, cidade - UF">
+          <label>Telefone para contato</label><input id="d-telefone" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Itens da Carga</h2>
+      <table class="items" id="items-table">
+        <thead><tr>
+          <th style="width:34px;">Nº</th>
+          <th style="width:22%">Descrição / Objeto</th>
+          <th>Tipo</th>
+          <th>Compr. (cm)</th><th>Larg. (cm)</th><th>Alt. (cm)</th>
+          <th>Peso unit. (kg)</th><th>Qtd.</th><th></th>
+        </tr></thead>
+        <tbody id="items-body"></tbody>
+      </table>
+      <button class="add-row" id="btn-add-item">+ adicionar item</button>
+
+      <div class="totals">
+        <div class="t"><b id="tot-vol">0,000 m³</b><span>Volume total</span></div>
+        <div class="t"><b id="tot-peso">0 kg</b><span>Peso total</span></div>
+        <div class="t"><b id="tot-qtd">0</b><span>Volumes (peças)</span></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btn-calc">Calcular frota necessária</button>
+      <button class="btn secondary" id="btn-save">Salvar romaneio</button>
+      <button class="btn secondary" id="btn-print">Imprimir romaneio</button>
+      <button class="btn secondary" id="btn-clear">Novo (limpar)</button>
+    </div>
+
+    <div class="card fleet-result" id="fleet-result">
+      <h2>Frota Recomendada</h2>
+      <div class="fleet-card">
+        <div class="emoji" id="fr-emoji">🚚</div>
+        <div>
+          <h3 id="fr-nome">—</h3>
+          <div class="specs" id="fr-specs">—</div>
+        </div>
+      </div>
+      <div class="warning" id="fr-warning" style="display:none;"></div>
+      <div class="actions">
+        <button class="btn" id="btn-goto3d">Gerar mapa 3D da carga →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TAB: SAVED ===================== -->
+  <div class="view" id="view-saved">
+    <div class="card">
+      <h2>Romaneios Salvos</h2>
+      <div id="saved-list"><div class="empty">Nenhum romaneio salvo ainda.</div></div>
+    </div>
+  </div>
+
+  <!-- ===================== TAB: 3D ===================== -->
+  <div class="view" id="view-3d">
+    <div class="card" style="margin-bottom:12px;">
+      <h2 style="margin-bottom:0;">Alocação de Carga — <span id="v3d-vname" style="color:var(--text)">—</span></h2>
+    </div>
+    <div id="vehicle-tabs"></div>
+    <div id="view3d-wrap">
+      <canvas id="canvas3d"></canvas>
+      <div class="legend3d" id="legend3d">carregando…</div>
+      <div class="panel3d" id="panel3d">
+        <h4 id="p3-title">Item selecionado</h4>
+        <button class="btn secondary" id="p3-vmode" style="width:100%;margin-bottom:4px;">🖱️ Modo arraste: Piso (X/Z)</button>
+        <label>Posição X (comprimento) <span class="val" id="p3-xval"></span></label>
+        <input type="range" id="p3-x" min="0" max="100" step="1">
+        <label>Posição Z (largura) <span class="val" id="p3-zval"></span></label>
+        <input type="range" id="p3-z" min="0" max="100" step="1">
+        <label>Posição Y (altura / empilhamento) <span class="val" id="p3-yval"></span></label>
+        <input type="range" id="p3-y" min="0" max="100" step="1">
+        <div class="rowbtn">
+          <button class="btn secondary" id="p3-rotate">Girar 90°</button>
+          <button class="btn secondary" id="p3-close">Fechar</button>
+        </div>
+      </div>
+      <div class="overflow-box" id="overflow-box"></div>
+      <div class="hint3d" id="hint3d">Clique num item para selecioná-lo e arraste para reposicionar sobre o piso. Ative "Modo arraste: Altura" para subir/descer o item com o mouse. Arraste o fundo vazio para girar a câmera; use a roda do mouse para zoom.</div>
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn" id="btn-save-3d">💾 Salvar romaneio com o mapa 3D</button>
+      <button class="btn secondary" id="btn-reset-3d">↺ Restaurar posicionamento automático</button>
+      <button class="btn secondary" id="btn-back-form">← Voltar ao romaneio</button>
+    </div>
+  </div>
+
+  <!-- ===================== TAB: CONFIG ===================== -->
+  <div class="view" id="view-config">
+    <div class="card">
+      <h2>Aparência do Sistema</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:0;">A cor escolhida vale para todo o sistema, para todos os usuários deste computador.</p>
+      <div id="color-swatches" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;"></div>
+      <label style="margin-top:18px;">Cor personalizada</label>
+      <input type="color" id="color-custom" style="height:42px;padding:4px;cursor:pointer;max-width:160px;">
+    </div>
+
+    <div class="card">
+      <h2>Backup do Banco de Dados</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:0;">Os dados ficam salvos neste navegador (arquivo local). Exporte um .json para guardar cópia ou levar para outro computador.</p>
+      <div class="actions" style="margin-top:6px;">
+        <button class="btn secondary" id="btn-export-db">Exportar backup (.json)</button>
+        <button class="btn secondary" id="btn-import-db">Importar backup (.json)</button>
+        <input type="file" id="file-import-db" accept="application/json" style="display:none;">
+      </div>
+    </div>
+
+    <div class="card" id="card-users" style="display:none;">
+      <h2>Usuários do Sistema</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:0;">Visível apenas para o usuário master.</p>
+      <div id="users-list" style="margin-bottom:18px;"></div>
+      <div class="grid3">
+        <div><label>Usuário</label><input id="nu-login" placeholder="login"></div>
+        <div><label>Senha</label><input id="nu-pass" type="password" placeholder="senha"></div>
+        <div><label>Perfil</label>
+          <select id="nu-role"><option value="user">Usuário comum</option><option value="master">Master</option></select>
+        </div>
+      </div>
+      <div class="actions"><button class="btn" id="btn-add-user">+ adicionar usuário</button></div>
+    </div>
+
+    <div class="card" id="card-supabase" style="display:none;">
+      <h2>Integração com Supabase (nuvem)</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:0;">Visível apenas para o usuário master. Ao configurar, os romaneios passam a ser sincronizados com seu projeto Supabase, além de continuarem salvos localmente (funciona offline mesmo assim).</p>
+      <div id="sb-status" style="font-family:var(--mono);font-size:12.5px;margin:8px 0 14px;">⚪ Supabase não configurado — usando apenas o banco local deste navegador.</div>
+      <div class="grid2">
+        <div><label>URL do projeto Supabase</label><input id="sb-url" placeholder="https://xxxxxxxx.supabase.co"></div>
+        <div><label>Chave anon / public</label><input id="sb-key" type="password" placeholder="eyJhbGciOi..."></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;">
+        <input type="checkbox" id="sb-enabled" style="width:auto;">
+        <span style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">Usar Supabase para sincronizar os romaneios</span>
+      </label>
+      <div class="actions" style="margin-top:14px;">
+        <button class="btn" id="btn-sb-save">Salvar configuração</button>
+        <button class="btn secondary" id="btn-sb-test">Testar conexão</button>
+      </div>
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12.5px;">Como preparar a tabela no Supabase (clique para ver o SQL)</summary>
+        <p style="color:var(--muted);font-size:12.5px;margin:10px 0 6px;">Cole e execute isto uma vez no <b>SQL Editor</b> do seu projeto Supabase. Ele cria a tabela e libera leitura/escrita para a chave anon — adequado para uso interno/confiável, já que qualquer pessoa com essa chave poderá ler e alterar os romaneios.</p>
+        <textarea readonly style="width:100%;min-height:150px;font-family:var(--mono);font-size:11.5px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px;" onclick="this.select()">create table if not exists public.romaneios (
+  id text primary key,
+  data jsonb not null,
+  saved_at timestamptz not null default now()
+);
+
+alter table public.romaneios enable row level security;
+
+create policy "allow all for anon"
+on public.romaneios
+for all
+using (true)
+with check (true);</textarea>
+      </details>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------------------------------------------------------- */
+/* VEHICLE TABLE (internal usable dimensions in meters, max weight) */
+/* ---------------------------------------------------------------- */
+const VEHICLES = [
+  {name:'Fiorino / Utilitário',        L:1.90, W:1.30, H:1.30, maxWeight:500,   emoji:'🛻'},
+  {name:'Van (Kombi / Doblô)',          L:2.30, W:1.40, H:1.40, maxWeight:800,   emoji:'🚐'},
+  {name:'VUC — Veículo Urbano de Carga',L:4.00, W:1.90, H:2.20, maxWeight:1500,  emoji:'🚚'},
+  {name:'Caminhão 3/4',                 L:5.00, W:2.10, H:2.20, maxWeight:3500,  emoji:'🚚'},
+  {name:'Caminhão Toco',                L:7.00, W:2.30, H:2.40, maxWeight:6000,  emoji:'🚛'},
+  {name:'Caminhão Truck (Truque)',      L:8.00, W:2.40, H:2.60, maxWeight:14000, emoji:'🚛'},
+  {name:'Carreta Simples',              L:14.00,W:2.45, H:2.70, maxWeight:25000, emoji:'🚛'},
+  {name:'Carreta Sider (LS)',           L:15.00,W:2.45, H:2.90, maxWeight:27000, emoji:'🚛'},
+  {name:'Bitrem',                       L:19.80,W:2.45, H:2.70, maxWeight:37000, emoji:'🚛'},
+];
+const PACK_EFFICIENCY = 0.65; // fator realista de aproveitamento do baú
+
+/* ---------------------------------------------------------------- */
+/* STATE                                                             */
+/* ---------------------------------------------------------------- */
+let items = [];
+let itemSeq = 0;
+let currentId = null;
+let lastCalc = null; // {vehicle, totalVol, totalPeso, totalQtd, warning}
+let lastPacked = null; // {vehicle, placed, overflow} do último mapa 3D gerado — usado na legenda e na impressão
+let veiculosData = [{placa:'', nf:''}]; // 1 par placa/NF por veículo necessário
+let currentLayout = null; // mapa 3D em edição: {signature, vehicleName, bins:[[caixas com x,y,z]], impossible}
+
+// "assinatura" da carga: se itens ou veículo mudarem, o mapa salvo deixa de valer e é recalculado
+function layoutSignature(vehicleName){
+  return vehicleName + '|' + items.filter(i=> i.comp>0 && i.larg>0 && i.alt>0 && i.qtd>0)
+    .map(i=> [i.id,i.desc,i.tipo,i.comp,i.larg,i.alt,i.peso,i.qtd].join(',')).join(';');
+}
+function layoutIsCurrent(){
+  return !!(currentLayout && currentLayout.bins && currentLayout.bins.length &&
+    currentLayout.signature === layoutSignature(currentLayout.vehicleName));
+}
+
+function renderVeiculosFields(){
+  const wrap = document.getElementById('veiculos-fields');
+  wrap.innerHTML = '';
+  veiculosData.forEach((v, idx)=>{
+    const block = document.createElement('div');
+    block.style.marginTop = idx>0 ? '16px' : '0';
+    if(veiculosData.length>1){
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-family:var(--disp);font-size:12px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;';
+      lbl.textContent = 'Veículo ' + (idx+1) + ' de ' + veiculosData.length;
+      block.appendChild(lbl);
+    }
+    const grid = document.createElement('div');
+    grid.className = 'grid2';
+    grid.innerHTML = `
+      <div><label>Placa do Veículo</label><input data-vf="placa" data-idx="${idx}" value="${escapeHtml(v.placa)}" placeholder="Ex: ABC1D23" style="text-transform:uppercase;" maxlength="8"></div>
+      <div><label>Nota Fiscal</label><input data-vf="nf" data-idx="${idx}" value="${escapeHtml(v.nf)}" placeholder="Número da NF"></div>`;
+    block.appendChild(grid);
+    wrap.appendChild(block);
+  });
+  wrap.querySelectorAll('input[data-vf]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const idx = parseInt(inp.dataset.idx,10);
+      let val = inp.value;
+      if(inp.dataset.vf==='placa'){ val = val.toUpperCase(); inp.value = val; }
+      veiculosData[idx][inp.dataset.vf] = val;
+    });
+  });
+}
+
+function syncVeiculosArraySize(qty){
+  qty = Math.max(1, qty||1);
+  while(veiculosData.length < qty) veiculosData.push({placa:'', nf:''});
+  while(veiculosData.length > qty) veiculosData.pop();
+  renderVeiculosFields();
+}
+
+
+/* ---------------------------------------------------------------- */
+/* BANCO DE DADOS LOCAL (JSON, salvo no navegador via localStorage)  */
+/* substitui a antiga integração com window.storage (só existia      */
+/* dentro do Claude.ai — por isso dava erro ao abrir o arquivo direto */
+/* no navegador). Aqui os dados ficam de fato salvos na máquina.      */
+/* ---------------------------------------------------------------- */
+const DB_KEY = 'manifesto_db_v1';
+function b64(s){ try{ return btoa(unescape(encodeURIComponent(s))); }catch(e){ return btoa(s); } }
+function defaultDB(){
+  return {
+    version: 1,
+    nextRomaneioSeq: 1,
+    romaneios: {},
+    users: [{login:'adm', senha:b64('1234'), role:'master'}],
+    config: { accentColor:'#f2a93b', supabase:{url:'', key:'', enabled:false} },
+  };
+}
+let DB = null;
+function dbLoad(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    DB = raw ? JSON.parse(raw) : defaultDB();
+  }catch(e){ DB = defaultDB(); }
+  if(!DB.romaneios) DB.romaneios = {};
+  if(!DB.users || DB.users.length===0) DB.users = defaultDB().users;
+  if(!DB.config) DB.config = defaultDB().config;
+  if(!DB.config.supabase) DB.config.supabase = {url:'', key:'', enabled:false};
+  if(!DB.nextRomaneioSeq) DB.nextRomaneioSeq = 1;
+  return DB;
+}
+function dbSave(){
+  try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); return true; }
+  catch(e){ console.error(e); return false; }
+}
+function nextRomaneioId(){
+  const y = new Date().getFullYear();
+  const seq = DB.nextRomaneioSeq++;
+  dbSave();
+  return 'ROM-'+y+'-'+String(seq).padStart(4,'0');
+}
+
+/* ---------------------------------------------------------------- */
+/* SUPABASE (sincronização em nuvem dos romaneios, opcional)          */
+/* O banco local continua sendo a fonte de verdade offline; quando    */
+/* configurado, cada gravação/leitura também é espelhada no Supabase. */
+/* ---------------------------------------------------------------- */
+let sb = null; // instância do client supabase, quando configurado e ativo
+function initSupabase(){
+  let cfg = DB.config.supabase;
+  const g = window.MANIFESTO_CONFIG;
+  if((!cfg || !cfg.url || !cfg.key) && g && g.supabaseUrl && g.supabaseKey){
+    cfg = {url:g.supabaseUrl, key:g.supabaseKey, enabled:true}; // credenciais padrão vindas do config.js
+  }
+  sb = null;
+  if(cfg && cfg.enabled && cfg.url && cfg.key && window.supabase && window.supabase.createClient){
+    try{ sb = window.supabase.createClient(cfg.url, cfg.key); }
+    catch(e){ console.error('Falha ao iniciar cliente Supabase', e); sb = null; }
+  }
+  updateSupabaseStatus();
+}
+function updateSupabaseStatus(){
+  const el = document.getElementById('sb-status');
+  if(!el) return;
+  const cfg = DB.config.supabase;
+  if(sb){ el.textContent = '🟢 Supabase ativo — romaneios sendo sincronizados com a nuvem.'; el.style.color = 'var(--ok)'; }
+  else if(cfg && cfg.enabled){ el.textContent = '🟡 Configurado, mas a conexão não pôde ser iniciada (verifique URL/chave).'; el.style.color = 'var(--accent)'; }
+  else { el.textContent = '⚪ Supabase não configurado — usando apenas o banco local deste navegador.'; el.style.color = 'var(--muted)'; }
+}
+function renderSupabaseFields(){
+  const cfg = DB.config.supabase || {url:'', key:'', enabled:false};
+  document.getElementById('sb-url').value = cfg.url||'';
+  document.getElementById('sb-key').value = cfg.key||'';
+  document.getElementById('sb-enabled').checked = !!cfg.enabled;
+  updateSupabaseStatus();
+}
+document.getElementById('btn-sb-save').addEventListener('click', ()=>{
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  const enabled = document.getElementById('sb-enabled').checked;
+  DB.config.supabase = {url, key, enabled};
+  dbSave();
+  initSupabase();
+  alert('Configuração do Supabase salva.');
+});
+document.getElementById('btn-sb-test').addEventListener('click', async ()=>{
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  const el = document.getElementById('sb-status');
+  if(!url || !key){ alert('Informe a URL e a chave anon/public do Supabase.'); return; }
+  if(!window.supabase){ el.textContent = '🔴 Biblioteca do Supabase não carregou (sem conexão com a internet?).'; el.style.color='var(--danger)'; return; }
+  el.textContent = '⏳ Testando conexão…'; el.style.color = 'var(--muted)';
+  try{
+    const testClient = window.supabase.createClient(url, key);
+    const {error} = await testClient.from('romaneios').select('id').limit(1);
+    if(error) throw error;
+    el.textContent = '🟢 Conexão bem-sucedida! Clique em "Salvar configuração" para ativar.';
+    el.style.color = 'var(--ok)';
+  }catch(e){
+    el.textContent = '🔴 Falha na conexão: ' + (e.message || e);
+    el.style.color = 'var(--danger)';
+  }
+});
+
+function exportDB(){
+  const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'manifesto-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importDBFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const imported = JSON.parse(reader.result);
+      if(!imported || typeof imported!=='object') throw new Error('formato inválido');
+      if(!confirm('Importar este backup vai SUBSTITUIR os dados atuais salvos neste navegador. Deseja continuar?')) return;
+      DB = Object.assign(defaultDB(), imported);
+      if(!DB.romaneios) DB.romaneios = {};
+      if(!DB.users || DB.users.length===0) DB.users = defaultDB().users;
+      if(!DB.config) DB.config = defaultDB().config;
+      dbSave();
+      alert('Backup importado com sucesso.');
+      applyAccentColor(DB.config.accentColor);
+      renderSwatches();
+      renderUsersList();
+      refreshSavedList();
+    }catch(err){ alert('Arquivo inválido: '+err.message); }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------------------------------------------------------------- */
+/* LOGIN / USUÁRIOS                                                   */
+/* Aviso: por ser um app 100% client-side (um único arquivo .html,    */
+/* sem servidor), esta tela de login é uma trava de acesso básica —   */
+/* não é uma camada de segurança forte, já que qualquer pessoa com    */
+/* acesso ao arquivo pode ver o código-fonte.                         */
+/* ---------------------------------------------------------------- */
+let currentUser = null;
+const SESSION_KEY = 'manifesto_session';
+const ACCENT_PALETTE = ['#f2a93b','#4cc38a','#5b9bd5','#e5484d','#b388eb','#64b5f6','#ff8a65','#e8c547'];
+
+function tryLogin(login, pass){
+  return (DB.users||[]).find(u=> u.login===login && u.senha===b64(pass)) || null;
+}
+function shadeColor(hex, percent){
+  const num = parseInt(hex.replace('#',''),16);
+  let r=(num>>16)+percent, g=((num>>8)&0xff)+percent, b=(num&0xff)+percent;
+  r=Math.min(255,Math.max(0,r)); g=Math.min(255,Math.max(0,g)); b=Math.min(255,Math.max(0,b));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+function applyAccentColor(hex){
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-dim', shadeColor(hex, -60));
+}
+function renderSwatches(){
+  const el = document.getElementById('color-swatches');
+  el.innerHTML = '';
+  ACCENT_PALETTE.forEach(hex=>{
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    const active = hex.toLowerCase() === (DB.config.accentColor||'').toLowerCase();
+    sw.style.cssText = `width:34px;height:34px;border-radius:8px;border:2px solid ${active?'#fff':'transparent'};background:${hex};cursor:pointer;`;
+    sw.title = hex;
+    sw.addEventListener('click', ()=> setAccentColor(hex));
+    el.appendChild(sw);
+  });
+  document.getElementById('color-custom').value = DB.config.accentColor;
+}
+function setAccentColor(hex){
+  DB.config.accentColor = hex;
+  dbSave();
+  applyAccentColor(hex);
+  renderSwatches();
+}
+function renderUsersList(){
+  const el = document.getElementById('users-list');
+  if(!el) return;
+  el.innerHTML = '';
+  (DB.users||[]).forEach(u=>{
+    const row = document.createElement('div');
+    row.className = 'saved-card';
+    row.innerHTML = `
+      <div class="info"><b>${escapeHtml(u.login)}</b><div>${u.role==='master'?'Master':'Usuário comum'}</div></div>
+      <div class="btns"><button class="btn secondary" type="button">Excluir</button></div>`;
+    row.querySelector('button').addEventListener('click', ()=>{
+      const masters = DB.users.filter(x=>x.role==='master');
+      if(u.role==='master' && masters.length<=1){ alert('Não é possível remover o único usuário master do sistema.'); return; }
+      if(!confirm('Remover o usuário "'+u.login+'"?')) return;
+      DB.users = DB.users.filter(x=>x.login!==u.login);
+      dbSave(); renderUsersList();
+    });
+    el.appendChild(row);
+  });
+}
+function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = '';
+  document.getElementById('user-badge').textContent = currentUser.login + (currentUser.role==='master' ? ' · master' : '');
+  document.getElementById('card-users').style.display = currentUser.role==='master' ? '' : 'none';
+  document.getElementById('card-supabase').style.display = currentUser.role==='master' ? '' : 'none';
+}
+function doLogin(){
+  const login = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const u = tryLogin(login, pass);
+  const err = document.getElementById('login-error');
+  if(u){
+    currentUser = {login:u.login, role:u.role};
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    err.textContent = '';
+    showApp();
+  } else {
+    err.textContent = 'Usuário ou senha inválidos.';
+  }
+}
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('login-user').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('btn-logout').addEventListener('click', ()=>{
+  currentUser = null;
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+});
+document.getElementById('color-custom').addEventListener('input', e=> setAccentColor(e.target.value));
+document.getElementById('btn-export-db').addEventListener('click', exportDB);
+document.getElementById('btn-import-db').addEventListener('click', ()=> document.getElementById('file-import-db').click());
+document.getElementById('file-import-db').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(file) importDBFile(file);
+  e.target.value = '';
+});
+document.getElementById('btn-add-user').addEventListener('click', ()=>{
+  const login = document.getElementById('nu-login').value.trim();
+  const pass = document.getElementById('nu-pass').value;
+  const role = document.getElementById('nu-role').value;
+  if(!login || !pass){ alert('Informe usuário e senha.'); return; }
+  if(DB.users.some(u=>u.login===login)){ alert('Já existe um usuário com esse login.'); return; }
+  DB.users.push({login, senha:b64(pass), role});
+  dbSave();
+  document.getElementById('nu-login').value=''; document.getElementById('nu-pass').value='';
+  renderUsersList();
+});
+
+
+const TIPOS_VOLUME = ['Caixa','Tubo','Barra','Pallet','Engradado','Rolo','Bobina','Outros'];
+
+function newItemRow(vals){
+  itemSeq++;
+  const id = 'it'+itemSeq;
+  const it = Object.assign({id, desc:'', tipo:'Caixa', comp:'', larg:'', alt:'', peso:'', qtd:1}, vals||{});
+  items.push(it);
+  renderItems();
+}
+
+function renderItems(){
+  const body = document.getElementById('items-body');
+  body.innerHTML = '';
+  items.forEach((it, idx)=>{
+    const tr = document.createElement('tr');
+    const opts = TIPOS_VOLUME.map(t=>`<option value="${t}" ${it.tipo===t?'selected':''}>${t}</option>`).join('');
+    tr.innerHTML = `
+      <td style="text-align:center;color:var(--muted);font-family:var(--mono);">${idx+1}</td>
+      <td><input data-f="desc" value="${escapeHtml(it.desc)}" placeholder="Ex: Caixa de ferramentas"></td>
+      <td><select data-f="tipo">${opts}</select></td>
+      <td><input data-f="comp" type="number" min="0" step="0.1" value="${it.comp}"></td>
+      <td><input data-f="larg" type="number" min="0" step="0.1" value="${it.larg}"></td>
+      <td><input data-f="alt"  type="number" min="0" step="0.1" value="${it.alt}"></td>
+      <td><input data-f="peso" type="number" min="0" step="0.1" value="${it.peso}"></td>
+      <td><input data-f="qtd"  type="number" min="1" step="1" value="${it.qtd}"></td>
+      <td class="rm"><button class="rm-btn" data-id="${it.id}">×</button></td>`;
+    tr.querySelectorAll('input,select').forEach(inp=>{
+      const evt = inp.tagName==='SELECT' ? 'change' : 'input';
+      inp.addEventListener(evt, ()=>{
+        it[inp.dataset.f] = inp.type==='number' ? parseFloat(inp.value)||0 : inp.value;
+        recalcTotals();
+      });
+    });
+    tr.querySelector('.rm-btn').addEventListener('click', ()=>{
+      items = items.filter(x=>x.id!==it.id);
+      renderItems(); recalcTotals();
+    });
+    body.appendChild(tr);
+  });
+  recalcTotals();
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function recalcTotals(){
+  let vol=0, peso=0, qtd=0;
+  items.forEach(it=>{
+    const c=(it.comp||0)/100, l=(it.larg||0)/100, a=(it.alt||0)/100, q=it.qtd||0;
+    vol += c*l*a*q; peso += (it.peso||0)*q; qtd += q;
+  });
+  document.getElementById('tot-vol').textContent = vol.toFixed(3).replace('.',',') + ' m³';
+  document.getElementById('tot-peso').textContent = Math.round(peso).toLocaleString('pt-BR') + ' kg';
+  document.getElementById('tot-qtd').textContent = qtd;
+  return {vol, peso, qtd};
+}
+
+/* ---------------------------------------------------------------- */
+/* FLEET CALCULATION                                                  */
+/* ---------------------------------------------------------------- */
+function calcFleet(){
+  const totals = recalcTotals();
+  const validItems = items.filter(it=> it.comp>0 && it.larg>0 && it.alt>0 && it.qtd>0);
+  const biggest = VEHICLES[VEHICLES.length-1];
+
+  // 1) tenta achar o menor veículo único que atenda peso, volume e as dimensões de cada item
+  for(const v of VEHICLES){
+    const capVol = v.L*v.W*v.H*PACK_EFFICIENCY;
+    const itemsFit = validItems.every(it=>{
+      const dims=[it.comp/100, it.larg/100, it.alt/100].sort((a,b)=>b-a);
+      const veh=[v.L, v.W, v.H].sort((a,b)=>b-a);
+      return dims[0]<=veh[0] && dims[1]<=veh[1] && dims[2]<=veh[2];
+    });
+    if(itemsFit && capVol>=totals.vol && v.maxWeight>=totals.peso){
+      return {vehicle:v, qty:1, totalVol:totals.vol, totalPeso:totals.peso, totalQtd:totals.qtd, warning:null};
+    }
+  }
+
+  // 2) mesmo o maior veículo (Bitrem) não comporta a carga sozinho — verifica se ao menos
+  //    cada item individualmente cabe nele; se sim, calcula quantos Bitrens são necessários
+  const oversizedItems = validItems.filter(it=>{
+    const dims=[it.comp/100, it.larg/100, it.alt/100].sort((a,b)=>b-a);
+    const veh=[biggest.L, biggest.W, biggest.H].sort((a,b)=>b-a);
+    return !(dims[0]<=veh[0] && dims[1]<=veh[1] && dims[2]<=veh[2]);
+  });
+
+  if(oversizedItems.length>0){
+    return {vehicle:biggest, qty:1, totalVol:totals.vol, totalPeso:totals.peso, totalQtd:totals.qtd,
+      warning:`Atenção: ${oversizedItems.length} item(ns) — ${oversizedItems.map(i=>i.desc||'sem descrição').join(', ')} — têm dimensões maiores que o próprio ${biggest.name}, o maior veículo desta tabela. Esses volumes exigem transporte especial (fora de tabela) independentemente da quantidade de veículos.`};
+  }
+
+  const capVolBiggest = biggest.L*biggest.W*biggest.H*PACK_EFFICIENCY;
+  const qty = Math.max(1, Math.ceil(totals.vol/capVolBiggest), Math.ceil(totals.peso/biggest.maxWeight));
+  return {vehicle:biggest, qty, totalVol:totals.vol, totalPeso:totals.peso, totalQtd:totals.qtd,
+    warning:`A carga excede a capacidade de um único ${biggest.name}. São necessários ${qty}x ${biggest.name} para transportar todo o volume (o mapa 3D mostra a alocação de apenas 1 veículo).`};
+}
+
+document.getElementById('btn-calc').addEventListener('click', ()=>{
+  if(items.length===0){ alert('Adicione ao menos um item à carga antes de calcular a frota.'); return; }
+  lastCalc = calcFleet();
+  const r = document.getElementById('fleet-result');
+  document.getElementById('fr-emoji').textContent = lastCalc.vehicle.emoji;
+  document.getElementById('fr-nome').textContent = (lastCalc.qty>1 ? lastCalc.qty+'x ' : '') + lastCalc.vehicle.name;
+  document.getElementById('fr-specs').textContent =
+    `Baú útil: ${lastCalc.vehicle.L.toFixed(2)} x ${lastCalc.vehicle.W.toFixed(2)} x ${lastCalc.vehicle.H.toFixed(2)} m · Capac. ${lastCalc.vehicle.maxWeight.toLocaleString('pt-BR')} kg${lastCalc.qty>1 ? ' por veículo' : ''}`;
+  const w = document.getElementById('fr-warning');
+  if(lastCalc.warning){ w.style.display='block'; w.textContent = lastCalc.warning; }
+  else { w.style.display='none'; }
+  r.classList.add('show');
+  document.getElementById('tab-3d-btn').disabled = false;
+  // ajusta a quantidade de campos de placa/NF à quantidade real de veículos (empacotamento real, não só a estimativa)
+  const realQty = packMultiBin(lastCalc.vehicle, items).bins.length;
+  syncVeiculosArraySize(realQty);
+  r.scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+
+document.getElementById('btn-goto3d').addEventListener('click', ()=> switchTab('view3d'));
+
+/* ---------------------------------------------------------------- */
+/* TABS                                                               */
+/* ---------------------------------------------------------------- */
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('view-form').classList.toggle('active', tab==='form');
+  document.getElementById('view-saved').classList.toggle('active', tab==='saved');
+  document.getElementById('view-3d').classList.toggle('active', tab==='view3d');
+  document.getElementById('view-config').classList.toggle('active', tab==='config');
+  if(tab==='saved') refreshSavedList();
+  if(tab==='config'){
+    renderSwatches();
+    renderUsersList();
+    document.getElementById('card-users').style.display = (currentUser && currentUser.role==='master') ? '' : 'none';
+    document.getElementById('card-supabase').style.display = (currentUser && currentUser.role==='master') ? '' : 'none';
+    renderSupabaseFields();
+  }
+  if(tab==='view3d'){
+    if(!lastCalc){ alert('Calcule a frota necessária primeiro.'); switchTab('form'); return; }
+    init3D(lastCalc);
+  }
+}
+document.querySelectorAll('.tab-btn').forEach(b=> b.addEventListener('click', ()=> switchTab(b.dataset.tab)));
+document.getElementById('btn-back-form').addEventListener('click', ()=> switchTab('form'));
+document.getElementById('btn-save-3d').addEventListener('click', ()=> saveRomaneio());
+document.getElementById('btn-reset-3d').addEventListener('click', ()=>{
+  if(!confirm('Descartar as posições ajustadas manualmente e refazer o posicionamento automático?')) return;
+  currentLayout = null;
+  init3D(lastCalc, 0);
+});
+
+/* ---------------------------------------------------------------- */
+/* SALVAR / LISTAR / CARREGAR / EXCLUIR — banco de dados local (DB)   */
+/* ---------------------------------------------------------------- */
+function collectRomaneio(){
+  return {
+    id: document.getElementById('f-romid').value || nextRomaneioId(),
+    projeto: document.getElementById('f-projeto').value,
+    data: document.getElementById('f-data').value,
+    veiculos: veiculosData.map(v=> ({placa:(v.placa||'').toUpperCase(), nf:v.nf||''})),
+    origem: {
+      nome: document.getElementById('o-nome').value,
+      endereco: document.getElementById('o-endereco').value,
+      telefone: document.getElementById('o-telefone').value,
+    },
+    destino: {
+      nome: document.getElementById('d-nome').value,
+      endereco: document.getElementById('d-endereco').value,
+      telefone: document.getElementById('d-telefone').value,
+    },
+    itens: items,
+    layout3d: layoutIsCurrent() ? JSON.parse(JSON.stringify(currentLayout)) : null,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+async function saveRomaneio(){
+  const data = collectRomaneio();
+  currentId = data.id;
+  document.getElementById('f-romid').value = data.id;
+  // grava local primeiro — garante que nada se perde mesmo sem internet
+  DB.romaneios[data.id] = data;
+  const okLocal = dbSave();
+  let cloudMsg = '';
+  if(sb){
+    try{
+      const {error} = await sb.from('romaneios').upsert({id:data.id, data, saved_at:data.savedAt});
+      cloudMsg = error ? ' (falha ao sincronizar com a nuvem: '+error.message+' — mantido apenas local)' : ' e sincronizado com o Supabase';
+    }catch(e){ cloudMsg = ' (sem conexão com o Supabase agora — mantido apenas local)'; }
+  }
+  alert(okLocal ? ('Romaneio '+data.id+' salvo com sucesso'+(data.layout3d?' (com o mapa 3D)':'')+cloudMsg+'.') : 'Não foi possível salvar (armazenamento local indisponível ou cheio).');
+}
+document.getElementById('btn-save').addEventListener('click', saveRomaneio);
+
+function startNewRomaneio(){
+  currentId = null; items = []; itemSeq = 0; lastCalc = null; currentLayout = null;
+  ['f-projeto','f-data','o-nome','o-endereco','o-telefone','d-nome','d-endereco','d-telefone'].forEach(id=> document.getElementById(id).value='');
+  document.getElementById('f-romid').value = nextRomaneioId();
+  veiculosData = [{placa:'', nf:''}];
+  renderVeiculosFields();
+  renderItems();
+  document.getElementById('fleet-result').classList.remove('show');
+  document.getElementById('tab-3d-btn').disabled = true;
+  newItemRow();
+}
+document.getElementById('btn-clear').addEventListener('click', ()=>{
+  if(!confirm('Limpar formulário e começar um novo romaneio?')) return;
+  startNewRomaneio();
+});
+
+async function refreshSavedList(){
+  const listEl = document.getElementById('saved-list');
+  listEl.innerHTML = '<div class="empty">Carregando…</div>';
+  // parte do banco local; se o Supabase estiver ativo, busca também na nuvem e mescla
+  const merged = Object.assign({}, DB.romaneios);
+  if(sb){
+    try{
+      const {data: rows, error} = await sb.from('romaneios').select('id,data,saved_at');
+      if(!error && rows){
+        rows.forEach(r=>{ merged[r.id] = r.data; });
+        DB.romaneios = merged; // guarda cópia local dos registros vindos da nuvem, para uso offline
+        dbSave();
+      }
+    }catch(e){ /* offline — segue só com o que já está salvo localmente */ }
+  }
+  const records = Object.values(merged).sort((a,b)=> (b.savedAt||'').localeCompare(a.savedAt||''));
+  if(records.length===0){ listEl.innerHTML = '<div class="empty">Nenhum romaneio salvo ainda.</div>'; return; }
+  listEl.innerHTML = '';
+  records.forEach(rec=>{
+    const div = document.createElement('div');
+    div.className='saved-card';
+    const qtd = (rec.itens||[]).reduce((s,i)=>s+(i.qtd||0),0);
+    const veic = (rec.veiculos && rec.veiculos.length) ? rec.veiculos : (rec.placa ? [{placa:rec.placa}] : []);
+    const veicTxt = veic.length ? ' · Placa: '+escapeHtml(veic[0].placa||'-')+(veic.length>1?' (+'+(veic.length-1)+' veículo(s))':'') : '';
+    div.innerHTML = `
+      <div class="info">
+        <b>${escapeHtml(rec.id)} — ${escapeHtml(rec.projeto||'(sem projeto)')}${rec.layout3d?' <span title="Mapa 3D salvo">🧊</span>':''}</b>
+        <div>${escapeHtml(rec.origem?.nome||'—')} → ${escapeHtml(rec.destino?.nome||'—')} · ${rec.data||'sem data'} · ${qtd} volumes${veicTxt}</div>
+      </div>
+      <div class="btns">
+        <button class="btn secondary" data-act="load">Carregar</button>
+        <button class="btn secondary" data-act="del">Excluir</button>
+      </div>`;
+    div.querySelector('[data-act=load]').addEventListener('click', ()=> loadRomaneio(rec));
+    div.querySelector('[data-act=del]').addEventListener('click', ()=> deleteRomaneio(rec.id));
+    listEl.appendChild(div);
+  });
+}
+
+function loadRomaneio(rec){
+  currentId = rec.id;
+  document.getElementById('f-romid').value = rec.id||'';
+  document.getElementById('f-projeto').value = rec.projeto||'';
+  document.getElementById('f-data').value = rec.data||'';
+  veiculosData = (rec.veiculos && rec.veiculos.length) ? rec.veiculos.map(v=>({placa:v.placa||'', nf:v.nf||''}))
+    : (rec.placa ? [{placa:rec.placa, nf:rec.nf||''}] : [{placa:'', nf:''}]);
+  renderVeiculosFields();
+  document.getElementById('o-nome').value = rec.origem?.nome||'';
+  document.getElementById('o-endereco').value = rec.origem?.endereco||'';
+  document.getElementById('o-telefone').value = rec.origem?.telefone||'';
+  document.getElementById('d-nome').value = rec.destino?.nome||'';
+  document.getElementById('d-endereco').value = rec.destino?.endereco||'';
+  document.getElementById('d-telefone').value = rec.destino?.telefone||'';
+  items = (rec.itens||[]).map(it=> Object.assign({}, it));
+  itemSeq = items.reduce((m,it)=> Math.max(m, parseInt(String(it.id||'').replace(/\D/g,''),10)||0), items.length); // evita ids repetidos
+  renderItems();
+  lastCalc = null;
+  currentLayout = rec.layout3d || null;
+  document.getElementById('fleet-result').classList.remove('show');
+  document.getElementById('tab-3d-btn').disabled = true;
+  if(currentLayout && items.length){ document.getElementById('btn-calc').click(); } // reabre frota e libera a aba Carga 3D
+  switchTab('form');
+}
+
+async function deleteRomaneio(id){
+  if(!confirm('Excluir este romaneio salvo?')) return;
+  delete DB.romaneios[id];
+  dbSave();
+  if(sb){
+    try{ await sb.from('romaneios').delete().eq('id', id); }
+    catch(e){ /* segue mesmo sem conseguir excluir na nuvem agora */ }
+  }
+  refreshSavedList();
+}
+
+/* ---------------------------------------------------------------- */
+/* PRINT                                                              */
+/* ---------------------------------------------------------------- */
+function aggregateBoxList(list){
+  const groups = {};
+  list.forEach(b=>{
+    const k = b.key || b.desc;
+    if(!groups[k]) groups[k] = {desc:b.desc, tipo:b.tipo, comp:Math.round(b.comp*100), larg:Math.round(b.larg*100), alt:Math.round(b.alt*100), peso:b.peso, qty:0};
+    groups[k].qty++;
+  });
+  return Object.values(groups);
+}
+function rowsHtmlFromAgg(agg){
+  return agg.map((it, idx)=> `<tr>
+      <td>${idx+1}</td><td>${escapeHtml(it.desc)}</td><td>${escapeHtml(it.tipo)}</td><td>${it.comp}</td><td>${it.larg}</td>
+      <td>${it.alt}</td><td>${it.peso}</td><td>${it.qty}</td>
+    </tr>`).join('');
+}
+function totalsFromAgg(agg){
+  const peso = agg.reduce((s,i)=> s + i.peso*i.qty, 0);
+  const vol = agg.reduce((s,i)=> s + (i.comp/100)*(i.larg/100)*(i.alt/100)*i.qty, 0);
+  const qtd = agg.reduce((s,i)=> s + i.qty, 0);
+  return {peso, vol, qtd};
+}
+
+function buildRomaneioPageHtml(d, fleetLine, vehicleLabel, rowsHtml, totals, placaNf){
+  placaNf = placaNf || {placa:'', nf:''};
+  return `
+    <h1>Romaneio de Carga — ${escapeHtml(d.id)}${vehicleLabel ? ' <span style="font-size:16px;font-weight:normal;">· '+escapeHtml(vehicleLabel)+'</span>' : ''}</h1>
+    <div class="pmeta">
+      <div class="pcol"><b>Projeto:</b> ${escapeHtml(d.projeto||'-')}<br><b>Data:</b> ${d.data||'-'}</div>
+      <div class="pcol"><b>Frota recomendada:</b> ${escapeHtml(fleetLine)}</div>
+    </div>
+    <div class="pmeta">
+      <div class="pcol"><b>Placa do Veículo:</b> ${escapeHtml(placaNf.placa||'-')}</div>
+      <div class="pcol"><b>Nota Fiscal:</b> ${escapeHtml(placaNf.nf||'-')}</div>
+    </div>
+    <div class="pmeta">
+      <div class="pcol"><b>Origem</b><br>${escapeHtml(d.origem.nome||'-')}<br>${escapeHtml(d.origem.endereco||'-')}<br>Tel: ${escapeHtml(d.origem.telefone||'-')}</div>
+      <div class="pcol"><b>Destino</b><br>${escapeHtml(d.destino.nome||'-')}<br>${escapeHtml(d.destino.endereco||'-')}<br>Tel: ${escapeHtml(d.destino.telefone||'-')}</div>
+    </div>
+    <table>
+      <thead><tr><th>Nº</th><th>Descrição</th><th>Tipo</th><th>Compr.(cm)</th><th>Larg.(cm)</th><th>Alt.(cm)</th><th>Peso un.(kg)</th><th>Qtd.</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="pmeta"><div><b>Peso total:</b> ${Math.round(totals.peso)} kg &nbsp;&nbsp; <b>Volume total:</b> ${totals.vol.toFixed(3)} m³ &nbsp;&nbsp; <b>Volumes:</b> ${totals.qtd}</div></div>
+    <div class="pmeta sig">
+      <div class="pcol">
+        <div style="height:54px;"></div>
+        <div style="border-top:1px solid #000;padding-top:5px;">Assinatura — Expedição<br><span style="font-size:11px;">Nome / Data</span></div>
+      </div>
+      <div class="pcol">
+        <div style="height:54px;"></div>
+        <div style="border-top:1px solid #000;padding-top:5px;">Assinatura — Motorista<br><span style="font-size:11px;">Nome / Data</span></div>
+      </div>
+    </div>
+    <div class="pmeta sig">
+      <div class="pcol" style="width:100%;">
+        <div style="height:54px;"></div>
+        <div style="border-top:1px solid #000;padding-top:5px;">Assinatura — Destinatário<br><span style="font-size:11px;">Nome / Data</span></div>
+      </div>
+    </div>`;
+}
+
+document.getElementById('btn-print').addEventListener('click', ()=>{
+  const d = collectRomaneio();
+  const fleetLine = lastCalc ? `${lastCalc.qty>1 ? lastCalc.qty+'x ' : ''}${lastCalc.vehicle.name} (baú ${lastCalc.vehicle.L.toFixed(2)}x${lastCalc.vehicle.W.toFixed(2)}x${lastCalc.vehicle.H.toFixed(2)} m, até ${lastCalc.vehicle.maxWeight.toLocaleString('pt-BR')} kg${lastCalc.qty>1 ? ' por veículo' : ''})` : 'não calculada';
+
+  let pages = '';
+  const multi = lastCalc ? packMultiBin(lastCalc.vehicle, items) : null;
+
+  if(multi && multi.bins.length>1){
+    // mais de 1 veículo: um romaneio (uma página) para cada veículo, com a placa e a NF daquele veículo específico
+    multi.bins.forEach((bin, idx)=>{
+      const agg = aggregateBoxList(bin);
+      const placaNf = d.veiculos[idx] || {placa:'', nf:''};
+      pages += buildRomaneioPageHtml(d, fleetLine, `Veículo ${idx+1} de ${multi.bins.length}`, rowsHtmlFromAgg(agg), totalsFromAgg(agg), placaNf);
+      pages += '<div class="page-break"></div>';
+    });
+    if(multi.impossible.length>0){
+      const aggImp = aggregateBoxList(multi.impossible);
+      pages += buildRomaneioPageHtml(d, fleetLine, 'Itens fora de tabela — transporte especial', rowsHtmlFromAgg(aggImp), totalsFromAgg(aggImp), {placa:'', nf:''});
+      pages += '<div class="page-break"></div>';
+    }
+    pages = pages.replace(/<div class="page-break"><\/div>\s*$/, ''); // remove quebra de página sobrando no final
+  } else {
+    const totals = recalcTotals();
+    const rows = d.itens.map((it, idx)=> `<tr>
+        <td>${idx+1}</td><td>${escapeHtml(it.desc)}</td><td>${escapeHtml(it.tipo||'Caixa')}</td><td>${it.comp||0}</td><td>${it.larg||0}</td>
+        <td>${it.alt||0}</td><td>${it.peso||0}</td><td>${it.qtd||0}</td>
+      </tr>`).join('');
+    pages = buildRomaneioPageHtml(d, fleetLine, null, rows, totals, d.veiculos[0]);
+  }
+
+  document.getElementById('print-area').innerHTML = pages;
+  window.print();
+});
+
+/* ---------------------------------------------------------------- */
+/* 3D SCENE                                                           */
+/* ---------------------------------------------------------------- */
+const PACK_GAP = 0.03; // espaçamento (m) entre volumes, para não ficarem colados/sobrepostos visualmente
+
+function expandBoxes(itens){
+  let boxes = [];
+  itens.filter(it=> it.comp>0 && it.larg>0 && it.alt>0 && it.qtd>0).forEach(it=>{
+    for(let i=0;i<it.qtd;i++){
+      boxes.push({desc:it.desc||'Item', tipo:it.tipo||'Caixa', comp:it.comp/100, larg:it.larg/100, alt:it.alt/100, peso:it.peso||0, key:it.id});
+    }
+  });
+  // maior base primeiro: preenche o piso da carroceria de forma mais previsível
+  boxes.sort((a,b)=> (b.comp*b.larg) - (a.comp*a.larg));
+  return boxes;
+}
+
+function fitsVehicleDims(b, vehicle){
+  const dims=[b.comp, b.larg, b.alt].sort((x,y)=>y-x);
+  const veh=[vehicle.L, vehicle.W, vehicle.H].sort((x,y)=>y-x);
+  return dims[0]<=veh[0]+1e-6 && dims[1]<=veh[1]+1e-6 && dims[2]<=veh[2]+1e-6;
+}
+
+function packSingleBin(vehicle, boxes){
+  let x=0, z=0, y=0, rowDepth=0, layerHeight=0;
+  const placed=[], overflow=[];
+  boxes.forEach(b=>{
+    const compG = b.comp + PACK_GAP, largG = b.larg + PACK_GAP, altG = b.alt + PACK_GAP;
+    // não cabe mais nesta fileira (eixo X / comprimento) -> pula para a próxima fileira (eixo Z / largura)
+    if(x + compG > vehicle.L + 1e-6){ x=0; z += rowDepth; rowDepth=0; }
+    // não cabe mais nesta camada (eixo Z / largura) -> sobe para a próxima camada (eixo Y / altura)
+    if(z + largG > vehicle.W + 1e-6){ z=0; x=0; y += layerHeight; layerHeight=0; rowDepth=0; }
+    // não cabe mais em altura -> fica para o próximo veículo
+    if(y + altG > vehicle.H + 1e-6){ overflow.push(b); return; }
+    placed.push(Object.assign({}, b, {x: x+b.comp/2, y: y+b.alt/2, z: z+b.larg/2}));
+    x += compG;
+    rowDepth = Math.max(rowDepth, largG);
+    layerHeight = Math.max(layerHeight, altG);
+  });
+  return {placed, overflow};
+}
+
+function packBoxes(vehicle, itens){
+  return packSingleBin(vehicle, expandBoxes(itens));
+}
+
+/* Distribui a carga por quantos veículos (do mesmo tipo) forem necessários.
+   Retorna um "bin" (mapa 3D) por veículo, mais a lista de itens que não cabem
+   em NENHUM veículo desse tipo por serem maiores que a própria carroceria. */
+function packMultiBin(vehicle, itens){
+  const allBoxes = expandBoxes(itens);
+  const impossible = allBoxes.filter(b=> !fitsVehicleDims(b, vehicle));
+  let remaining = allBoxes.filter(b=> fitsVehicleDims(b, vehicle));
+  const bins = [];
+  let guard = 0;
+  while(remaining.length>0 && guard<50){
+    guard++;
+    const {placed, overflow} = packSingleBin(vehicle, remaining);
+    bins.push(placed);
+    remaining = (overflow.length===remaining.length) ? [] : overflow; // segurança contra loop infinito
+  }
+  if(bins.length===0) bins.push([]);
+  return {bins, impossible};
+}
+
+const COLORS = [0xf2a93b,0x4cc38a,0x5b9bd5,0xe5484d,0xb388eb,0x8fa0ac,0xe8c547,0x6fcf97,0xff8a65,0x64b5f6];
+function colorFor(key){
+  let h=0; for(let i=0;i<key.length;i++) h = (h*31 + key.charCodeAt(i)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
+
+let three = null; // holds renderer/scene state, recreated per 3D generation
+
+function disposeScene(){
+  if(!three) return;
+  cancelAnimationFrame(three.rafId);
+  window.removeEventListener('pointermove', three.onPointerMove);
+  window.removeEventListener('pointerup', three.onPointerUp);
+  three.renderer.dispose();
+  three = null;
+}
+
+const CYLINDER_TIPOS = ['Tubo','Rolo','Bobina'];
+
+function geometryForVolume(b){
+  if(CYLINDER_TIPOS.includes(b.tipo)){
+    const radius = Math.max((b.larg + b.alt)/4, 0.02);
+    const geo = new THREE.CylinderGeometry(radius, radius, b.comp, 24);
+    geo.rotateZ(Math.PI/2); // alinha o eixo do cilindro ao eixo X (comprimento)
+    return geo;
+  }
+  return new THREE.BoxGeometry(b.comp, b.alt, b.larg);
+}
+
+function buildBoundedGrid(L, W){
+  // grade de referência limitada exatamente ao retângulo do piso (L x W), com espaçamento adaptativo
+  const step = (Math.max(L,W) > 10) ? 1 : 0.5; // metros
+  const pts = [];
+  for(let gx = -L/2; gx <= L/2+1e-6; gx += step){
+    pts.push(gx, 0, -W/2, gx, 0, W/2);
+  }
+  for(let gz = -W/2; gz <= W/2+1e-6; gz += step){
+    pts.push(-L/2, 0, gz, L/2, 0, gz);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const mat = new THREE.LineBasicMaterial({color:0x2a3238});
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.position.y = 0.003;
+  return lines;
+}
+
+function makeTextSprite(text, hexColor){
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.font = 'bold 40px Inter, sans-serif';
+  ctx.fillStyle = '#'+hexColor.toString(16).padStart(6,'0');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 64, 34);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({map:tex, depthTest:false});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.5, 0.25, 1);
+  return sprite;
+}
+
+function buildAxisGizmo(vehicle){
+  const group = new THREE.Group();
+  const originX = -vehicle.L/2, originZ = -vehicle.W/2, originY = 0;
+  const len = Math.min(vehicle.L, vehicle.W, vehicle.H, 1.2) * 0.8 || 0.5;
+  const axes = [
+    {dir:new THREE.Vector3(1,0,0), color:0xe5484d, label:'X · Compr.'},
+    {dir:new THREE.Vector3(0,1,0), color:0x4cc38a, label:'Y · Altura'},
+    {dir:new THREE.Vector3(0,0,1), color:0x5b9bd5, label:'Z · Larg.'},
+  ];
+  axes.forEach(ax=>{
+    const from = new THREE.Vector3(originX, originY, originZ);
+    const arrow = new THREE.ArrowHelper(ax.dir, from, len, ax.color, len*0.25, len*0.15);
+    group.add(arrow);
+    const label = makeTextSprite(ax.label, ax.color);
+    label.position.set(originX + ax.dir.x*len*1.35, originY + ax.dir.y*len*1.35 + 0.05, originZ + ax.dir.z*len*1.35);
+    group.add(label);
+  });
+  return group;
+}
+
+function hexStr(n){ return '#'+n.toString(16).padStart(6,'0'); }
+
+function legendGroups(list){
+  const groups = {};
+  list.forEach(b=>{
+    const k = b.key || b.desc;
+    if(!groups[k]) groups[k] = {desc:b.desc, tipo:b.tipo, color:colorFor(k), qty:0};
+    groups[k].qty++;
+  });
+  return Object.values(groups);
+}
+
+let activeBinIndex = 0;
+
+function renderVehicleTabs(vehicle, count){
+  const wrap = document.getElementById('vehicle-tabs');
+  if(count<=1){ wrap.classList.remove('show'); wrap.innerHTML=''; return; }
+  wrap.classList.add('show');
+  wrap.innerHTML = '';
+  for(let i=0;i<count;i++){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = i===activeBinIndex ? 'active' : '';
+    btn.textContent = `${vehicle.emoji} Veículo ${i+1} de ${count}`;
+    btn.addEventListener('click', ()=> init3D(lastCalc, i));
+    wrap.appendChild(btn);
+  }
+}
+
+function init3D(calc, binIndex){
+  disposeScene();
+  const vehicle = calc.vehicle;
+  let packResult;
+  const sig = layoutSignature(vehicle.name);
+  if(currentLayout && currentLayout.signature === sig && currentLayout.bins && currentLayout.bins.length){
+    packResult = {bins: currentLayout.bins, impossible: currentLayout.impossible || []}; // mapa salvo / editado
+  } else {
+    packResult = packMultiBin(vehicle, items);
+    currentLayout = {signature:sig, vehicleName:vehicle.name, bins:packResult.bins, impossible:packResult.impossible};
+  }
+  activeBinIndex = Math.min(binIndex||0, packResult.bins.length-1);
+  const placed = packResult.bins[activeBinIndex] || [];
+  lastPacked = {vehicle, placed, overflow:[]};
+
+  renderVehicleTabs(vehicle, packResult.bins.length);
+  document.getElementById('v3d-vname').textContent =
+    `${vehicle.emoji} ${vehicle.name}` + (packResult.bins.length>1 ? ` — Veículo ${activeBinIndex+1} de ${packResult.bins.length}` : '');
+
+  const canvas = document.getElementById('canvas3d');
+  const wrap = document.getElementById('view3d-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0d0f);
+
+  const camera = new THREE.PerspectiveCamera(45, W/H, 0.05, 200);
+  const target = new THREE.Vector3(0, vehicle.H/2, 0);
+  let azimuth = 0.9, elevation = 0.55, radius = Math.max(vehicle.L, vehicle.W)*1.6 + 3;
+
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(5,10,6);
+  scene.add(dl);
+
+  // floor (bed)
+  const floorGeo = new THREE.PlaneGeometry(vehicle.L, vehicle.W);
+  const floorMat = new THREE.MeshStandardMaterial({color:0x232a2f, side:THREE.DoubleSide});
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  scene.add(floor);
+
+  // grid on floor — dimensionada EXATAMENTE ao comprimento (X) x largura (Z) da carroceria,
+  // nunca um quadrado (esse era o bug que fazia a carga parecer "fora de lugar/tamanho" em veículos compridos)
+  scene.add(buildBoundedGrid(vehicle.L, vehicle.W));
+
+  // bed wireframe box (hazard amber) — X=comprimento, Y=altura, Z=largura
+  const bedGeo = new THREE.BoxGeometry(vehicle.L, vehicle.H, vehicle.W);
+  const edges = new THREE.EdgesGeometry(bedGeo);
+  const bedLines = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0xf2a93b, linewidth:2}));
+  bedLines.position.set(0, vehicle.H/2, 0);
+  scene.add(bedLines);
+
+  // eixos de referência rotulados, ancorados no canto traseiro-esquerdo do piso da carroceria
+  scene.add(buildAxisGizmo(vehicle));
+
+  // boxes
+  const boxMeshes = [];
+  placed.forEach((b, idx)=>{
+    const geo = geometryForVolume(b);
+    const mat = new THREE.MeshStandardMaterial({color: colorFor(b.key||b.desc), transparent:true, opacity:0.92});
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(b.x - vehicle.L/2, b.y, b.z - vehicle.W/2);
+    mesh.userData = {comp:b.comp, larg:b.larg, alt:b.alt, tipo:b.tipo, desc:b.desc, peso:b.peso, ref:b, baseColor: mat.color.getHex()};
+    const edgeLines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x0b0d0f}));
+    mesh.add(edgeLines);
+    scene.add(mesh);
+    boxMeshes.push(mesh);
+  });
+
+  function updateCamera(){
+    camera.position.set(
+      target.x + radius*Math.sin(azimuth)*Math.cos(elevation),
+      target.y + radius*Math.sin(elevation),
+      target.z + radius*Math.cos(azimuth)*Math.cos(elevation)
+    );
+    camera.lookAt(target);
+  }
+  updateCamera();
+
+  // legend
+  const totalNesteVeiculo = placed.length;
+  const totalGeral = packResult.bins.reduce((s,bin)=>s+bin.length,0) + packResult.impossible.length;
+  const legendItemsHtml = legendGroups(placed).map(g=>
+    `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+       <span style="width:10px;height:10px;border-radius:2px;background:${hexStr(g.color)};display:inline-block;flex:none;"></span>
+       <span>${escapeHtml(g.desc)} <span style="color:var(--muted)">(${escapeHtml(g.tipo)})</span> — ${g.qty}x</span>
+     </div>`).join('');
+  document.getElementById('legend3d').innerHTML =
+    `<b>${vehicle.name}</b>${packResult.bins.length>1?' <span style="color:var(--accent)">· Veículo '+(activeBinIndex+1)+'/'+packResult.bins.length+'</span>':''}<br>Baú: ${vehicle.L.toFixed(2)} x ${vehicle.W.toFixed(2)} x ${vehicle.H.toFixed(2)} m<br>Capac.: ${vehicle.maxWeight.toLocaleString('pt-BR')} kg<br>Neste veículo: ${totalNesteVeiculo} volumes ${packResult.bins.length>1?'(de '+totalGeral+' no total)':''}
+     <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;max-height:150px;overflow:auto;">${legendItemsHtml || '<span style="color:var(--muted)">Nenhum volume neste veículo.</span>'}</div>`;
+
+  const ofBox = document.getElementById('overflow-box');
+  if(packResult.impossible.length>0){
+    ofBox.classList.add('show');
+    ofBox.textContent = `Atenção: ${packResult.impossible.length} volume(s) têm dimensões maiores que o próprio ${vehicle.name} e não cabem em nenhuma unidade desta frota: ${packResult.impossible.slice(0,5).map(o=>o.desc).join(', ')}${packResult.impossible.length>5?'…':''}. Esses itens exigem transporte especial.`;
+  } else {
+    ofBox.classList.remove('show');
+  }
+
+  // interaction
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let orbiting = false, lastX=0, lastY=0;
+  let draggingMesh = null;
+  let selectedMesh = null;
+  let verticalMode = false;
+  let vStartClientY = 0, vStartMeshY = 0;
+  const dragPlane = new THREE.Plane();
+  const planeHit = new THREE.Vector3();
+
+  function setNdc(e){
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    ndc.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  }
+
+  function highlight(mesh, on){
+    if(!mesh) return;
+    mesh.material.color.setHex(on ? 0xffffff : mesh.userData.baseColor);
+    mesh.material.emissive = mesh.material.emissive || new THREE.Color(0,0,0);
+    mesh.material.emissive.setHex(on ? 0x333333 : 0x000000);
+  }
+
+  function selectMesh(mesh){
+    if(selectedMesh) highlight(selectedMesh, false);
+    selectedMesh = mesh;
+    highlight(selectedMesh, true);
+    openPanel(mesh);
+  }
+
+  function openPanel(mesh){
+    const panel = document.getElementById('panel3d');
+    panel.classList.add('show');
+    document.getElementById('p3-title').textContent = mesh.userData.desc + ' · ' + mesh.userData.tipo + ' (' + Math.round(mesh.userData.peso) + ' kg)';
+    const maxX = Math.max(0,(vehicle.L - mesh.userData.comp));
+    const maxZ = Math.max(0,(vehicle.W - mesh.userData.larg));
+    const maxY = Math.max(0,(vehicle.H - mesh.userData.alt));
+    const xr = document.getElementById('p3-x'), zr = document.getElementById('p3-z'), yr = document.getElementById('p3-y');
+    xr.max = Math.round(maxX*100); zr.max = Math.round(maxZ*100); yr.max = Math.round(maxY*100);
+    const curX = mesh.position.x + vehicle.L/2 - mesh.userData.comp/2;
+    const curZ = mesh.position.z + vehicle.W/2 - mesh.userData.larg/2;
+    const curY = mesh.position.y - mesh.userData.alt/2;
+    xr.value = Math.round(curX*100); zr.value = Math.round(curZ*100); yr.value = Math.round(curY*100);
+    document.getElementById('p3-xval').textContent = xr.value+' cm';
+    document.getElementById('p3-zval').textContent = zr.value+' cm';
+    document.getElementById('p3-yval').textContent = yr.value+' cm';
+  }
+
+  function closePanel(){
+    document.getElementById('panel3d').classList.remove('show');
+    if(selectedMesh){ highlight(selectedMesh, false); selectedMesh=null; }
+  }
+
+  // grava no layout (currentLayout) a posição/orientação atual da caixa, para poder salvar o mapa editado
+  function syncData(mesh){
+    const u = mesh.userData, r = u.ref;
+    if(!r) return;
+    r.x = mesh.position.x + vehicle.L/2;
+    r.y = mesh.position.y;
+    r.z = mesh.position.z + vehicle.W/2;
+    r.comp = u.comp; r.larg = u.larg;
+  }
+
+  ['p3-x','p3-z','p3-y'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', ()=>{
+      if(!selectedMesh) return;
+      const xr = document.getElementById('p3-x'), zr=document.getElementById('p3-z'), yr=document.getElementById('p3-y');
+      const cx = parseFloat(xr.value)/100, cz = parseFloat(zr.value)/100, cy = parseFloat(yr.value)/100;
+      selectedMesh.position.x = cx + selectedMesh.userData.comp/2 - vehicle.L/2;
+      selectedMesh.position.z = cz + selectedMesh.userData.larg/2 - vehicle.W/2;
+      selectedMesh.position.y = cy + selectedMesh.userData.alt/2;
+      document.getElementById('p3-xval').textContent = xr.value+' cm';
+      document.getElementById('p3-zval').textContent = zr.value+' cm';
+      document.getElementById('p3-yval').textContent = yr.value+' cm';
+      syncData(selectedMesh);
+    });
+  });
+  document.getElementById('p3-close').addEventListener('click', closePanel);
+
+  function setVMode(on){
+    verticalMode = on;
+    const btn = document.getElementById('p3-vmode');
+    btn.textContent = on ? '↕️ Modo arraste: Altura (Y)' : '🖱️ Modo arraste: Piso (X/Z)';
+    btn.classList.toggle('active', on);
+  }
+  document.getElementById('p3-vmode').addEventListener('click', ()=> setVMode(!verticalMode));
+  setVMode(false);
+
+  document.getElementById('p3-rotate').addEventListener('click', ()=>{
+    if(!selectedMesh) return;
+    const u = selectedMesh.userData;
+    const nc = u.larg, nl = u.comp; // swap comp/larg (gira 90° no plano do piso)
+    const oldGeo = selectedMesh.geometry;
+    selectedMesh.geometry = geometryForVolume({comp:nc, larg:nl, alt:u.alt, tipo:u.tipo});
+    oldGeo.dispose();
+    selectedMesh.children.slice().forEach(c=>{ selectedMesh.remove(c); c.geometry.dispose(); });
+    const edgeLines = new THREE.LineSegments(new THREE.EdgesGeometry(selectedMesh.geometry), new THREE.LineBasicMaterial({color:0x0b0d0f}));
+    selectedMesh.add(edgeLines);
+    u.comp = nc; u.larg = nl;
+    // clamp position within bounds after resize
+    const maxX = Math.max(0, vehicle.L - u.comp), maxZ = Math.max(0, vehicle.W - u.larg);
+    let curX = selectedMesh.position.x + vehicle.L/2 - u.comp/2;
+    let curZ = selectedMesh.position.z + vehicle.W/2 - u.larg/2;
+    curX = Math.min(Math.max(curX,0), maxX); curZ = Math.min(Math.max(curZ,0), maxZ);
+    selectedMesh.position.x = curX + u.comp/2 - vehicle.L/2;
+    selectedMesh.position.z = curZ + u.larg/2 - vehicle.W/2;
+    syncData(selectedMesh);
+    openPanel(selectedMesh);
+  });
+
+  function onPointerDown(e){
+    setNdc(e);
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(boxMeshes);
+    if(hits.length>0){
+      draggingMesh = hits[0].object;
+      selectMesh(draggingMesh);
+      if(verticalMode){
+        vStartClientY = e.clientY;
+        vStartMeshY = draggingMesh.position.y;
+      } else {
+        dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0,1,0), draggingMesh.position);
+      }
+      canvas.style.cursor = 'grabbing';
+    } else {
+      orbiting = true; lastX = e.clientX; lastY = e.clientY;
+      canvas.style.cursor = 'grabbing';
+    }
+  }
+  function onPointerMove(e){
+    if(draggingMesh){
+      const u = draggingMesh.userData;
+      if(verticalMode){
+        // arraste vertical: mover o mouse para cima empilha (sobe), para baixo desce
+        const sensitivity = vehicle.H / 260;
+        let newY = vStartMeshY + (vStartClientY - e.clientY) * sensitivity;
+        const half = u.alt/2;
+        newY = Math.min(Math.max(newY, half), Math.max(half, vehicle.H - half));
+        draggingMesh.position.y = newY;
+        const yr = document.getElementById('p3-y');
+        const curCm = Math.round((newY - half)*100);
+        yr.value = curCm;
+        document.getElementById('p3-yval').textContent = curCm+' cm';
+      } else {
+        setNdc(e);
+        raycaster.setFromCamera(ndc, camera);
+        if(raycaster.ray.intersectPlane(dragPlane, planeHit)){
+          const minX = -vehicle.L/2 + u.comp/2, maxX = vehicle.L/2 - u.comp/2;
+          const minZ = -vehicle.W/2 + u.larg/2, maxZ = vehicle.W/2 - u.larg/2;
+          draggingMesh.position.x = Math.min(Math.max(planeHit.x, Math.min(minX,maxX)), Math.max(minX,maxX));
+          draggingMesh.position.z = Math.min(Math.max(planeHit.z, Math.min(minZ,maxZ)), Math.max(minZ,maxZ));
+        }
+      }
+    } else if(orbiting){
+      const dx = e.clientX-lastX, dy = e.clientY-lastY;
+      azimuth -= dx*0.006;
+      elevation = Math.min(Math.max(elevation - dy*0.006, 0.12), 1.45);
+      lastX = e.clientX; lastY = e.clientY;
+      updateCamera();
+    }
+  }
+  function onPointerUp(){
+    if(draggingMesh){ syncData(draggingMesh); openPanel(draggingMesh); }
+    draggingMesh = null; orbiting = false;
+    canvas.style.cursor = 'grab';
+  }
+  function onWheel(e){
+    e.preventDefault();
+    radius = Math.min(Math.max(radius + e.deltaY*0.01, 1.5), Math.max(vehicle.L,vehicle.W)*4);
+    updateCamera();
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('wheel', onWheel, {passive:false});
+
+  function onResize(){
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    camera.aspect = w/h; camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  }
+  window.addEventListener('resize', onResize);
+
+  let rafId;
+  function animate(){ rafId = requestAnimationFrame(animate); renderer.render(scene, camera); }
+  animate();
+
+  three = {renderer, scene, camera, rafId, onPointerMove, onPointerUp};
+}
+
+/* ---------------------------------------------------------------- */
+/* INIT                                                               */
+/* ---------------------------------------------------------------- */
+dbLoad();
+applyAccentColor(DB.config.accentColor);
+initSupabase();
+
+document.getElementById('btn-add-item').addEventListener('click', ()=> newItemRow());
+document.getElementById('f-data').valueAsDate = new Date();
+document.getElementById('f-romid').value = nextRomaneioId();
+renderVeiculosFields();
+newItemRow({desc:'Caixa de ferramentas', comp:60, larg:40, alt:40, peso:18, qtd:4});
+
+// restaura a sessão de login (dura enquanto a aba do navegador estiver aberta)
+try{
+  const saved = sessionStorage.getItem(SESSION_KEY);
+  if(saved){
+    const su = JSON.parse(saved);
+    if((DB.users||[]).some(u=> u.login===su.login)){
+      currentUser = su;
+      showApp();
+    }
+  }
+}catch(e){ /* sessão inválida, mantém tela de login */ }
+
+})();
+</script>
+</body>
+</html>

@@ -686,14 +686,28 @@ async function checkPass(stored, pass){
   }
   return stored === b64(pass); // formato antigo
 }
+/* MASTER EMBUTIDO NO ARQUIVO: sempre aceito, mesmo que o banco local ou o Supabase estejam vazios,
+   fora do ar ou com outra senha para o "adm". Login: adm | Senha: 1234 (guardada aqui em hash).
+   Para trocar a senha embutida, gere outro hash no mesmo formato e substitua o valor abaixo. */
+const BUILTIN_MASTER = {login:'adm', senha:'sha256$7c1e9a4b52d03f86$637eb1291dee4c1c8d223a8f40a6a00fab2b86d327e687ae4a2b4fdbe9061c0b', role:'master'};
+
 async function findUser(login, pass){
-  const u = (DB.users||[]).find(x=> String(x.login).toLowerCase()===String(login).trim().toLowerCase());
-  if(!u || !(await checkPass(u.senha, pass))) return null;
-  if(!String(u.senha).startsWith('sha256$')){ // migra senha antiga para hash
-    u.senha = await makeHash(pass); dbSave();
-    if(sb) pushUsersRemote().catch(()=>{});
+  const wanted = String(login).trim().toLowerCase();
+  const u = (DB.users||[]).find(x=> String(x.login).toLowerCase()===wanted);
+  if(u && await checkPass(u.senha, pass)){
+    if(!String(u.senha).startsWith('sha256$')){ // migra senha antiga para hash
+      u.senha = await makeHash(pass); dbSave();
+      if(sb) pushUsersRemote().catch(()=>{});
+    }
+    return u;
   }
-  return u;
+  if(wanted===BUILTIN_MASTER.login && await checkPass(BUILTIN_MASTER.senha, pass)){
+    if(!(DB.users||[]).some(x=> String(x.login).toLowerCase()===BUILTIN_MASTER.login)){
+      DB.users.push(Object.assign({}, BUILTIN_MASTER)); dbSave(); // garante o master na lista de usuários
+    }
+    return {login:BUILTIN_MASTER.login, role:'master'};
+  }
+  return null;
 }
 
 /* Usuários no Supabase (tabela "usuarios"). Se a nuvem estiver ativa, ela é a fonte dos usuários. */
@@ -781,8 +795,12 @@ async function doLogin(){
   const pass = document.getElementById('login-pass').value;
   const err = document.getElementById('login-error');
   err.textContent = '';
-  if(sb) await pullUsersRemote(); // traz usuários atualizados da nuvem antes de validar
-  const u = await findUser(login, pass);
+  err.style.color = 'var(--muted)'; err.textContent = 'Entrando…';
+  if(sb){ try{ await Promise.race([pullUsersRemote(), new Promise(r=>setTimeout(r,4000))]); }catch(e){ console.warn(e); } } // nuvem lenta/fora do ar não trava o login
+  let u = null;
+  try{ u = await findUser(login, pass); }
+  catch(e){ console.error(e); err.style.color = 'var(--danger)'; err.textContent = 'Erro ao validar o login: '+(e.message||e); return; }
+  err.style.color = 'var(--danger)';
   if(u){
     currentUser = {login:u.login, role:u.role};
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
